@@ -1,18 +1,36 @@
+(defpackage slashcord
+  (:use :cl)
+  (:local-nicknames (:a alexandria)
+                    (:i :ironclad)
+                    (:f flexi-streams)
+                    (:s serapeum)
+                    (:h :hunchentoot))
+  (:import-from :serapeum :-> :dict)
+  (:import-from :easy-routes :defroute)
+  (:import-from :json-mop :json-serializable-class)
+  (:export :main))
 (in-package :slashcord)
 
 (defvar *server* nil)
 (setf h:*show-lisp-errors-p* t)
-(defvar *public-key* (uiop:getenv "PUBLIC_KEY"))
+(defvar *public-key* (uiop:getenv "SLASHCORD_PUBLIC_KEY"))
 
-(defvar +signature-header+ :X-SIGNATURE-ED25519)
-(defvar +timestamp-header+ :X-SIGNATURE-TIMESTAMP)
-(defvar +slashcord-default-port+ 4242)
+(assert
+ (and *public-key*
+      (ignore-errors (i:hex-string-to-byte-array *public-key*)))
+        (*public-key*)
+        "Please set SLASHCORD_PUBLIC_KEY to your application public key.")
 
+(defvar +signature-header+ :x-signature-ed25519)
+(defvar +timestamp-header+ :x-signature-timestamp)
+(defvar +slashcord-default-port+ (or
+                                  (ignore-errors (parse-integer (uiop:getenv "SLASHCORD_PORT")))
+                                  4242))
 
 ;; https://discord.com/developers/docs/interactions/receiving-and-responding#security-and-authorization
-
 (-> valid-signature-p (string string string string) boolean)
 (defun valid-signature-p (public-key body signature timestamp)
+  "Verify an incoming Discord interaction against the application public key"
   (handler-case
     (a:if-let ((verify-key (i:make-public-key :ed25519 :y (i:hex-string-to-byte-array public-key)))
                (signature-bytes (i:hex-string-to-byte-array signature))
@@ -22,11 +40,12 @@
        body-bytes
        signature-bytes))
     (i:ironclad-error (c)
-      (format t "We handled an error: ~a~%" c)
+      "TODO: logging or better handling here"
       (values nil c))))
 
+(-> json-dict (&rest t) string)
 (defun json-dict (&rest vars)
-  (jzon:stringify (apply #'dict vars)))
+  (yason:encode-object (apply #'dict vars)))
 
 (defun @json (next)
   (setf (hunchentoot:content-type*) "application/json")
@@ -47,10 +66,10 @@
 (defroute pong-post ("/" :method :post :decorators (@auth @json)) ()
   (a:if-let
       ((json (ignore-errors
-              (jzon:parse (h:raw-post-data :force-text t)))))
-    (jzon:stringify ping)))
+              (yason:parse (h:raw-post-data :force-text t)))))
+    (yason:encode slashcord/types:ping)))
 
-(defun start (&key (port 4242))
+(defun start (&key (port +slashcord-default-port+))
   (setf *server* (make-instance 'easy-routes:routes-acceptor :port port))
   (h:start *server*))
 
@@ -58,7 +77,7 @@
   (h:stop *server*))
 
 (defun main ()
-  (start :port (or (uiop:getenv "SLASHCORD_PORT") +SLASHCORD-DEFAULT-PORT+))
+  (start :port +slashcord-default-port+)
   (handler-case (bt:join-thread (find-if (lambda (th)
                                             (search "hunchentoot" (bt:thread-name th)))
                                          (bt:all-threads)))
