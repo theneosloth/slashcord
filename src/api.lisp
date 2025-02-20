@@ -1,9 +1,9 @@
-(defpackage slashcord/interface
+(defpackage slashcord/api
   (:use :cl :slashcord/types)
   (:local-nicknames (:d dexador) (:s serapeum))
   (:export
    #:list-commands))
-(in-package :slashcord/interface)
+(in-package :slashcord/api)
 
 (defvar *bot-token* (uiop:getenv "SLASHCORD_BOT_TOKEN"))
 (defvar *application-id* (uiop:getenv "SLASHCORD_APPLICATION_ID"))

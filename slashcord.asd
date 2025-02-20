@@ -7,7 +7,7 @@
   :components ((:module "src"
                 :components
                 ((:file "types")
-                 (:file "interface")
+                 (:file "api")
                  (:file "slashcord"))))
   :description "A library designed to handle webhook Discord interactions"
   :in-order-to ((asdf:test-op (asdf:test-op "slashcord/tests"))))
@@ -21,7 +21,9 @@
   :components ((:module "tests"
                 :components
                 ((:file "types"))))
-  :description "Test system for slashcord")
+  :description "Test system for slashcord"
+  :perform (asdf:test-op (o s)
+                    (uiop:symbol-call :fiveam :run! 'slashcord/tests:all-tests)))
 
 (asdf:defsystem "slashcord/hack"
   :author ""
