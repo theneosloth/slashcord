@@ -1,5 +1,5 @@
 (defpackage slashcord
-  (:use :cl)
+  (:use :cl :slashcord-types)
   (:local-nicknames (:a alexandria)
                     (:i :ironclad)
                     (:f flexi-streams)
@@ -18,8 +18,8 @@
 (assert
  (and *public-key*
       (ignore-errors (i:hex-string-to-byte-array *public-key*)))
-        (*public-key*)
-        "Please set SLASHCORD_PUBLIC_KEY to your application public key.")
+ (*public-key*)
+ "Please set SLASHCORD_PUBLIC_KEY to your application public key.")
 
 (defvar +signature-header+ :x-signature-ed25519)
 (defvar +timestamp-header+ :x-signature-timestamp)
@@ -32,13 +32,13 @@
 (defun valid-signature-p (public-key body signature timestamp)
   "Verify an incoming Discord interaction against the application public key"
   (handler-case
-    (a:if-let ((verify-key (i:make-public-key :ed25519 :y (i:hex-string-to-byte-array public-key)))
-               (signature-bytes (i:hex-string-to-byte-array signature))
-               (body-bytes (i:ascii-string-to-byte-array (concatenate 'string timestamp body))))
-      (i:verify-signature
-       verify-key
-       body-bytes
-       signature-bytes))
+      (a:if-let ((verify-key (i:make-public-key :ed25519 :y (i:hex-string-to-byte-array public-key)))
+                 (signature-bytes (i:hex-string-to-byte-array signature))
+                 (body-bytes (i:ascii-string-to-byte-array (concatenate 'string timestamp body))))
+        (i:verify-signature
+         verify-key
+         body-bytes
+         signature-bytes))
     (i:ironclad-error (c)
       "TODO: logging or better handling here"
       (values nil c))))
@@ -60,14 +60,16 @@
         (easy-routes:http-error 401))
     (easy-routes:http-error h:+http-bad-request+)))
 
-(defroute pong-get ("/" :method :get :decorators (@json)) ()
-  (easy-routes:http-error h:+http-bad-request+))
+(defparameter example-json  (to-json (make-instance 'interaction-response :type 4 :data (make-instance 'interaction-callback :content "Hello, World"))))
 
-(defroute pong-post ("/" :method :post :decorators (@auth @json)) ()
-  (a:if-let
+(defroute receive-interaction ("/" :method :post :decorators (@auth @json)) ()
+  (a:when-let
       ((json (ignore-errors
               (yason:parse (h:raw-post-data :force-text t)))))
-    (yason:encode slashcord/types:ping)))
+    (ecase (gethash "type" json)
+      (+interaction-ping+ (to-json slashcord-types:ping))
+      (+interaction-application-command+ example-json)))
+  (easy-routes:http-error h:+http-bad-request+))
 
 (defun start (&key (port +slashcord-default-port+))
   (setf *server* (make-instance 'easy-routes:routes-acceptor :port port))
@@ -76,19 +78,26 @@
 (defun stop ()
   (h:stop *server*))
 
+(defun cleanup ()
+  (bt:destroy-thread
+   (find-if (lambda (th)
+              (search "hunchentoot" (bt:thread-name th)))
+            (bt:all-threads))))
+
 (defun main ()
+  (format t "Running slashcord on ~D" +slashcord-default-port+)
   (start :port +slashcord-default-port+)
   (handler-case (bt:join-thread (find-if (lambda (th)
-                                            (search "hunchentoot" (bt:thread-name th)))
+                                           (search "hunchentoot" (bt:thread-name th)))
                                          (bt:all-threads)))
     ;; Catch a user's C-c
     (#+sbcl sb-sys:interactive-interrupt
-      #+ccl  ccl:interrupt-signal-condition
-      #+clisp system::simple-interrupt-condition
-      #+ecl ext:interactive-interrupt
-      #+allegro excl:interrupt-signal
-      () (progn
-           (format *error-output* "Aborting.~&")
-           (h:stop *server*)
-           (uiop:quit)))
+     #+ccl  ccl:interrupt-signal-condition
+     #+clisp system::simple-interrupt-condition
+     #+ecl ext:interactive-interrupt
+     #+allegro excl:interrupt-signal
+     () (progn
+          (format *error-output* "Aborting.~&")
+          (h:stop *server*)
+          (uiop:quit)))
     (error (c) (format t "Woops, an unknown error occured:~&~a~&" c))))

@@ -1,8 +1,10 @@
-(defpackage slashcord/tests
+(defpackage slashcord-tests
   (:use :cl :fiveam :slashcord/types)
-  (:export :run! :all-tests))
+  (:export :all-tests))
 
-(in-package :slashcord/tests)
+(in-package :slashcord-tests)
+
+(setf fiveam:*run-test-when-defined* t)
 
 (def-suite all-tests
     :description "Run all slashcord tests")
@@ -40,5 +42,3 @@
                                       :options (list animal-option only-small-option)))
          (json (to-json blep-command)))
     (is (string= json "{\"type\":1,\"name\":\"blep\",\"description\":\"Send a random adorable animal photo\",\"options\":[{\"type\":3,\"name\":\"animal\",\"description\":\"The type of animal\",\"required\":true,\"choices\":[{\"name\":\"Dog\",\"value\":\"animal_dog\"},{\"name\":\"Cat\",\"value\":\"animal_cat\"},{\"name\":\"Penguin\",\"value\":\"animal_penguin\"}]},{\"type\":5,\"name\":\"only_smol\",\"description\":\"Whether to show only baby animals\",\"required\":false}]}"))))
-
-(run-all-tests)

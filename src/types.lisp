@@ -1,4 +1,4 @@
-(defpackage slashcord/types
+(defpackage slashcord-types
   (:use :cl)
   (:import-from :serapeum :-> :dict)
   (:import-from :easy-routes :defroute)
@@ -7,7 +7,6 @@
    :encode
    :ping
    :command-choice
-   :application-command-object
    :application-command-post
    :command-option
    :interaction-response
@@ -17,11 +16,17 @@
    :json-encodable
    :+option-string+
    :+option-boolean+
-   :+command-chat-input+))
+   :+command-chat-input+
+   :interaction-callback
+   :+interaction-ping+
+   :+interaction-application-command+
+   :+interaction-message-component+
+   :+interaction-application-command-autocomplete+
+   :+interaction-modal-submit+))
 
-(in-package :slashcord/types)
+(in-package :slashcord-types)
 
-;; Maybe there's an OpenAPI definition we can use to generate?
+;; Maybe there's an OpenAPI definition we can use to generate the definitions?
 
 (deftype snowflake () `(integer 0 (,most-positive-fixnum)))
 
@@ -34,21 +39,29 @@
 (deftype name ()
   '(string))
 
-(defparameter +interaction-type-hash+
-  (dict
-   1 :ping
-   2 :application-command
-   3 :message-component
-   4 :application-command-autocomplete
-   5 :modal-submit))
+;; https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-object-interaction-type
+(defparameter +interaction-ping+ 1)
+(defparameter +interaction-application-command+ 2)
+(defparameter +interaction-message-component+ 3)
+(defparameter +interaction-application-command-autocomplete+ 4)
+(defparameter +interaction-modal-submit+ 5)
 
+(defparameter +interaction-types+ (list +interaction-ping+
+                                    +interaction-application-command+
+                                    +interaction-message-component+
+                                    +interaction-application-command-autocomplete+
+                                    +interaction-modal-submit+))
+
+(-> interaction-p (t) boolean)
 (defun interaction-p (thing)
-  (gethash thing +interaction-type-hash+))
+  (member thing +interaction-types+))
 
 (deftype interaction-type ()
   `(satisfies interaction-p))
 
 ;; TODO: Similar type checking for other flags
+;; https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-response-object-interaction-callback-type
+(defparameter +ping-callback+ 1)
 (deftype interaction-callback-type ()
   '(or
     (integer 4 10)
@@ -82,20 +95,94 @@
   (declare (ignore initargs))
   (json-mop:json-to-clos input class))
 
+
+(defclass interaction-data (json-encodable)
+  ((id :initarg :id :type snowflake :initform 1 :json-key "id")
+   (name :initarg :name :type name :json-key "name")
+   (type :initarg :type :type interaction-type :json-key "type")
+   (resolved :initarg :resolved :type list :json-key "resolved")
+   (options :initarg :options :type list :json-key "options")
+   (guild-id :initarg :guild-id :type snowflake :json-key "guild_id")
+   (target-id :initarg :target-id :type snowflake :json-key "target_id"))
+  (:metaclass json-serializable-class))
+
+(defclass interaction (json-encodable)
+  ((id
+    :initarg :id
+    :type snowflake
+    :json-key "id")
+   (application-id
+    :initarg :application-id
+    :type snowflake
+    :json-key "application_id")
+   (type
+    :initarg :type
+    :type interaction-type
+    :json-key "type")
+   (data
+    :initarg :data
+    :type interaction-data
+    :json-key "data")
+   (guild
+    :initarg :name-localizations
+    :type guild
+    :json-key "guild")
+   (channel
+    :initarg :channel
+    :type string
+    :json-key "channel")
+   (channel-id
+    :initarg :channel-id
+    :type snowflake
+    :json-key "channel_id")
+   (member
+    :initarg :member
+    :type guild-member
+    :json-key "member")
+   (user
+    :initarg :user
+    :type user
+    :json-key "user")
+   (token
+    :initarg :token
+    :type string
+    :json-key "token")
+   (version
+    :initarg :version
+    :type integer
+    :initform 1
+    :json-key "version")
+   (message
+    :initarg :message
+    :type message
+    :json-key "message")
+   (app-permissions
+    :initarg :app-permissions
+    :type string
+    :json-key "app-permissions")
+   (locale :initarg :locale :type string :json-key "locale")
+   (guild-locale :initarg :guild-locale :type string :json-key "guild_locale")
+   (entitlements :initarg :entitlements :type list :json-key "entitlements")
+   (context
+    :initarg :context
+    :type integration-contexts
+    :json-key "context"))
+  (:metaclass json-serializable-class))
+
 (defclass interaction-callback (json-encodable)
-  ((tts :initarg :tts :type boolean :initform nil :json-key "tts")
-   (content :initarg :content :initform "" :type string :json-key "content")
+  ((tts :initarg :tts :type boolean :json-type :bool :json-key "tts")
+   (content :initarg :content :type string :json-key "content")
    (embeds :initarg :embeds :type list :json-key "embeds")
    (allowed-mentions :initarg :allowed-mentions :type list :json-key "allowed_mentions")
    (flags :initarg :flags :type message-flags :json-key "flags")
-   (components :initarg :components :initform nil :type t :json-key "components")
-   (attachments :initarg :attachments :initform nil :type t :json-key "attachments")
-   (poll :initarg :poll :initform nil :type t :json-key "poll"))
+   (components :initarg :components :type t :json-key "components")
+   (attachments :initarg :attachments :type t :json-key "attachments")
+   (poll :initarg :poll :type t :json-key "poll"))
   (:metaclass json-serializable-class))
 
 (defclass interaction-response (json-encodable)
   ((type :type interaction-type :initarg :type :initform 1 :json-key "type")
-   (data :initarg :data :json-key "data"))
+   (data :initarg :data :type interaction-callback :json-key "data"))
   (:metaclass json-serializable-class))
 
 (defparameter ping (make-instance 'interaction-response :type 1))
@@ -173,6 +260,7 @@
   (:metaclass json-serializable-class))
 
 ;; Parameters used to POST a new command to the discord API
+;; Probably unnecessary to keep this separate
 (defclass application-command-post (json-encodable)
   ((type
     :initarg :type

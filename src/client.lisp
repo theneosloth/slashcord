@@ -1,15 +1,12 @@
-(defpackage slashcord/api
-  (:use :cl :slashcord/types)
+(defpackage slashcord-client
+  (:use :cl :slashcord-types)
   (:local-nicknames (:d dexador) (:s serapeum))
   (:export
    #:list-commands))
-(in-package :slashcord/api)
+(in-package :slashcord-client)
 
 (defvar *bot-token* (uiop:getenv "SLASHCORD_BOT_TOKEN"))
 (defvar *application-id* (uiop:getenv "SLASHCORD_APPLICATION_ID"))
-
-(assert *bot-token* (*bot-token*) "Please set SLASHCORD_BOT_TOKEN to your bot token.")
-(assert *application-id* (*application-id*) "Please set SLASHCORD_APPLICATION_ID to your app ID.")
 
 (defvar *token-header* (format nil "Bot ~a" *bot-token*))
 
@@ -20,7 +17,15 @@
    (application-id :initarg :application-id :type string :accessor application-id
                    :initform (error "application-id not provided"))))
 
-(defparameter *client* (make-instance 'discord-api-client :application-id *application-id*))
+
+(defun make-client (application-id token)
+  (let* ((token-header (format nil "Bot ~a" token))
+         (headers `(("Content-Type" . "application/json")
+                    ("User-Agent" . "DiscordBot (example.com, 0.0.1)")
+                    ("Authorization" . ,token-header))))
+    (make-instance 'discord-api-client :application-id application-id :headers headers)))
+
+(defparameter *client* (make-client *application-id* *bot-token*))
 
 (define-condition discord-error (error)
   ((status :initarg :status :initform nil)
@@ -58,7 +63,7 @@
             (t
              (error 'discord-error :status status :code (gethash "code" response) :message (gethash "message" body)))))))))
 
-(defmethod object-get ((client discord-api-client) uri class)
+(defmethod api-get ((client discord-api-client) uri class)
   (let* ((res (request client uri))
          (res (yason:parse res
                            :json-booleans-as-symbols t
@@ -66,7 +71,7 @@
                            :json-nulls-as-keyword t)))
     (from-json res class)))
 
-(defmethod object-post ((client discord-api-client) uri obj class)
+(defmethod api-post ((client discord-api-client) uri obj class)
   (let* ((body (to-json obj))
          (res (request client uri :method :POST :body body))
          (res (yason:parse res
@@ -76,10 +81,10 @@
     (from-json res class)))
 
 (defmethod create-command ((client discord-api-client) (command application-command-post))
-  (object-post client (commands-uri client) command 'application-command))
+  (api-post client (commands-uri client) command 'application-command))
 
 (defmethod list-commands ((client discord-api-client))
-  (let* ((res (object-get client (commands-uri client) 'application-command)))
+  (let* ((res (api-get client (commands-uri client) 'application-command)))
     res))
 
 (defun create-ping-command ()
