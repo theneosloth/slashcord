@@ -12,20 +12,21 @@
 (in-package :slashcord)
 
 (defvar *server* nil)
-(setf h:*show-lisp-errors-p* t)
-(defvar *public-key* (uiop:getenv "SLASHCORD_PUBLIC_KEY"))
+(defvar *public-key* nil)
 
-(assert
- (and *public-key*
-      (ignore-errors (i:hex-string-to-byte-array *public-key*)))
- (*public-key*)
- "Please set SLASHCORD_PUBLIC_KEY to your application public key.")
+(setf h:*show-lisp-errors-p* t)
 
 (defvar +signature-header+ :x-signature-ed25519)
 (defvar +timestamp-header+ :x-signature-timestamp)
 (defvar +slashcord-default-port+ (or
                                   (ignore-errors (parse-integer (uiop:getenv "SLASHCORD_PORT")))
                                   4242))
+
+
+(defun get-public-key ()
+  (or
+   (uiop:getenv "SLASHCORD_PUBLIC_KEY")
+   (error "Could not find public key")))
 
 ;; https://discord.com/developers/docs/interactions/receiving-and-responding#security-and-authorization
 (-> valid-signature-p (string string string string) boolean)
@@ -43,10 +44,6 @@
       "TODO: logging or better handling here"
       (values nil c))))
 
-(-> json-dict (&rest t) string)
-(defun json-dict (&rest vars)
-  (yason:encode-object (apply #'dict vars)))
-
 (defun @json (next)
   (setf (hunchentoot:content-type*) "application/json")
   (funcall next))
@@ -60,15 +57,23 @@
         (easy-routes:http-error 401))
     (easy-routes:http-error h:+http-bad-request+)))
 
-(defparameter example-json  (to-json (make-instance 'interaction-response :type 4 :data (make-instance 'interaction-callback :content "Hello, World"))))
+(defun handle-command (command)
+  (let ((example (to-json
+                  (make-instance
+                   'interaction-response
+                   :type 4
+                   :data (make-instance 'interaction-callback :content "Hello, World")))))
+    (format t "~a" command)
+    example))
 
+(defparameter example-json  (to-json (make-instance 'interaction-response :type 4 :data (make-instance 'interaction-callback :content "Hello, World"))))
 (defroute receive-interaction ("/" :method :post :decorators (@auth @json)) ()
   (a:when-let
       ((json (ignore-errors
               (yason:parse (h:raw-post-data :force-text t)))))
     (ecase (gethash "type" json)
       (+interaction-ping+ (to-json slashcord-types:ping))
-      (+interaction-application-command+ example-json)))
+      (+interaction-application-command+ (handle-command json))))
   (easy-routes:http-error h:+http-bad-request+))
 
 (defun start (&key (port +slashcord-default-port+))
@@ -85,7 +90,14 @@
             (bt:all-threads))))
 
 (defun main ()
-  (format t "Running slashcord on ~D" +slashcord-default-port+)
+  (assert
+   (and (setf *public-key* (get-public-key))
+        (ignore-errors (i:hex-string-to-byte-array *public-key*)))
+   (*public-key*)
+   "Please set SLASHCORD_PUBLIC_KEY to your application public key.")
+
+  (format t "Running slashcord on ~D~&" +slashcord-default-port+)
+  (finish-output)
   (start :port +slashcord-default-port+)
   (handler-case (bt:join-thread (find-if (lambda (th)
                                            (search "hunchentoot" (bt:thread-name th)))

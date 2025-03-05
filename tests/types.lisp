@@ -1,5 +1,5 @@
 (defpackage slashcord-tests
-  (:use :cl :fiveam :slashcord/types)
+  (:use :cl :fiveam :slashcord-types)
   (:export :all-tests))
 
 (in-package :slashcord-tests)

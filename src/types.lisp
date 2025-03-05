@@ -225,8 +225,6 @@
 (deftype integration-context ()
   '(member 0 1 2))
 
-
-
 (defclass command-choice (json-encodable)
   ((name :initarg :name :type string :json-key "name")
    (name-localizations
@@ -240,7 +238,6 @@
   '(integer))
 (defvar +option-string+ 3)
 (defvar +option-boolean+ 5)
-
 
 (defclass command-option (json-encodable)
   ((type :initarg :type :type option-type :json-key "type")

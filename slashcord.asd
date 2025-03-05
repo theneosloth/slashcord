@@ -2,7 +2,7 @@
   :version "0.0.1"
   :author "Stefan Kuznetsov"
   :license "MIT"
-  :depends-on ("alexandria" "ironclad" "hunchentoot" "easy-routes" "serapeum" "yason" "json-mop" "dexador" "log4cl")
+  :depends-on ("alexandria" "ironclad" "hunchentoot" "easy-routes" "serapeum" "yason" "json-mop" "dexador")
   :serial t
   :components ((:module "src"
                 :components
@@ -10,7 +10,10 @@
                  (:file "client")
                  (:file "server"))))
   :description "A library designed to handle webhook Discord interactions"
-  :in-order-to ((asdf:test-op (asdf:test-op "slashcord/tests"))))
+  :in-order-to ((asdf:test-op (asdf:test-op "slashcord/tests")))
+  :build-operation "program-op"
+  :entry-point "slashcord:main"
+  :build-pathname "slashcord")
 
 
 (asdf:defsystem #:slashcord/hack
@@ -20,7 +23,7 @@
   :serial t
   :components ((:module "hack"
                 :components
-                ((:file "create-commands"))))
+                ((:file "client"))))
   :description "One off scripts using the library")
 
 (asdf:defsystem #:slashcord/tests
