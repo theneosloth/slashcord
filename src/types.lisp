@@ -5,7 +5,8 @@
   (:import-from :json-mop :json-serializable-class)
   (:export
    :encode
-   :ping
+   :pong
+   :interaction
    :command-choice
    :application-command-post
    :command-option
@@ -61,7 +62,9 @@
 
 ;; TODO: Similar type checking for other flags
 ;; https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-response-object-interaction-callback-type
-(defparameter +ping-callback+ 1)
+(defvar +pong-callback+ 1)
+(defvar +channel-message-with-source-callback+ 4)
+
 (deftype interaction-callback-type ()
   '(or
     (integer 4 10)
@@ -95,13 +98,21 @@
   (declare (ignore initargs))
   (json-mop:json-to-clos input class))
 
+;; https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-object-application-command-interaction-data-option-structure
+(defclass application-command-interaction (json-encodable)
+  ((name :initarg :name :type name :json-key "name")
+   (type :initarg :type :type interaction-type :json-key "type")
+   (value :initarg :value :type string :json-key "value")
+   (options :initarg :options :type application-command-interaction :json-key "options")
+   (focused :initarg :focused :type boolean :json-key "focused" :json-type :bool))
+  (:metaclass json-serializable-class))
 
 (defclass interaction-data (json-encodable)
   ((id :initarg :id :type snowflake :initform 1 :json-key "id")
    (name :initarg :name :type name :json-key "name")
    (type :initarg :type :type interaction-type :json-key "type")
    (resolved :initarg :resolved :type list :json-key "resolved")
-   (options :initarg :options :type list :json-key "options")
+   (options :initarg :options :type command-options :json-key "options")
    (guild-id :initarg :guild-id :type snowflake :json-key "guild_id")
    (target-id :initarg :target-id :type snowflake :json-key "target_id"))
   (:metaclass json-serializable-class))
@@ -181,11 +192,11 @@
   (:metaclass json-serializable-class))
 
 (defclass interaction-response (json-encodable)
-  ((type :type interaction-type :initarg :type :initform 1 :json-key "type")
+  ((type :type interaction-type :initarg :type :initform +pong-callback+ :json-key "type")
    (data :initarg :data :type interaction-callback :json-key "data"))
   (:metaclass json-serializable-class))
 
-(defparameter ping (make-instance 'interaction-response :type 1))
+(defparameter pong (make-instance 'interaction-response :type +pong-callback+))
 
 (deftype command-type ()
   '(integer))

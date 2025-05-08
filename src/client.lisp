@@ -5,15 +5,23 @@
    #:list-commands))
 (in-package :slashcord-client)
 
-(defvar *bot-token* (uiop:getenv "SLASHCORD_BOT_TOKEN"))
-(defvar *application-id* (uiop:getenv "SLASHCORD_APPLICATION_ID"))
+;; (defvar *bot-token* (uiop:getenv "SLASHCORD_BOT_TOKEN"))
+;; (defvar *application-id* (uiop:getenv "SLASHCORD_APPLICATION_ID"))
 
-(defvar *token-header* (format nil "Bot ~a" *bot-token*))
+(s:-> get-bot-token () string)
+(defun get-bot-token ()
+  (or
+   (uiop:getenv "SLASHCORD_BOT_TOKEN")
+   (error "Could not find SLASHCORD_BOT_TOKEN")))
+
+(s:-> get-application-id () string)
+(defun get-application-id ()
+  (or
+   (uiop:getenv "SLASHCORD_APPLICATION_ID")
+   (error "Could not find SLASHCORD_APPLICATION_ID")))
 
 (defclass discord-api-client ()
-  ((headers :initarg :headers :accessor headers :type list :initform `(("Content-Type" . "application/json")
-                                                                       ("User-Agent" . "DiscordBot (example.com, 0.0.1)")
-                                                                       ("Authorization" . ,*token-header*)))
+  ((headers :initarg :headers :accessor headers :type list :initform nil)
    (application-id :initarg :application-id :type string :accessor application-id
                    :initform (error "application-id not provided"))))
 
@@ -21,11 +29,9 @@
 (defun make-client (application-id token)
   (let* ((token-header (format nil "Bot ~a" token))
          (headers `(("Content-Type" . "application/json")
-                    ("User-Agent" . "DiscordBot (example.com, 0.0.1)")
+                    ("User-Agent" . "SlashCord (https://github.com/theneosloth/slashcord, 0.0.1)")
                     ("Authorization" . ,token-header))))
     (make-instance 'discord-api-client :application-id application-id :headers headers)))
-
-(defparameter *client* (make-client *application-id* *bot-token*))
 
 (define-condition discord-error (error)
   ((status :initarg :status :initform nil)
@@ -43,7 +49,6 @@
 (defgeneric commands-uri (discord-api-client)
   (:method (client)
       (format nil "https://discord.com/api/v10/applications/~a/commands" (application-id client))))
-
 
 (defmethod request ((client discord-api-client) uri &key (method :get) body)
   (with-slots (headers) client
@@ -87,7 +92,7 @@
   (let* ((res (api-get client (commands-uri client) 'application-command)))
     res))
 
-(defun create-ping-command ()
+(defun create-ping-command (client)
   (let* ((text-option (make-instance 'command-option
                                      :type +option-string+
                                      :name "input"
@@ -96,6 +101,6 @@
          (command (make-instance 'application-command-post
                                  :name "slash"
                                  :type +command-chat-input+
-                                 :description "Slashcord demo"
+                                 :description "Slashcord demo command"
                                  :options (list text-option))))
-    (create-command *client* command)))
+    (create-command client command)))

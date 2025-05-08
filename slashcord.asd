@@ -9,7 +9,7 @@
                 ((:file "types")
                  (:file "client")
                  (:file "server"))))
-  :description "A library designed to handle webhook Discord interactions"
+  :description "A library for handling Discord webhook interactions"
   :in-order-to ((asdf:test-op (asdf:test-op "slashcord/tests")))
   :build-operation "program-op"
   :entry-point "slashcord:main"
