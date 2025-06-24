@@ -17,4 +17,4 @@ test:
 	--eval "(asdf:test-system :slashcord)"
 
 share:
-	zrok share public http://localhost:4242
+	cloudflared tunnel --url localhost:4242

@@ -80,7 +80,7 @@
             export CL_SOURCE_REGISTRY=$PWD
           '';
           buildInputs = with pkgs; [
-            pkgs.zrok
+            pkgs.cloudflared
             (sbcl.withPackages (ps: lispLibs))
           ];
         };

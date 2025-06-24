@@ -1,33 +1,16 @@
-(defpackage slashcord-types
+(defpackage slashcord/types
   (:use :cl)
   (:import-from :serapeum :-> :dict)
   (:import-from :easy-routes :defroute)
   (:import-from :json-mop :json-serializable-class)
   (:export
-   :encode
-   :pong
-   :interaction
-   :command-choice
    :application-command-post
-   :command-option
-   :interaction-response
-   :application-command
    :to-json
    :from-json
-   :json-encodable
-   :+option-string+
-   :+option-boolean+
-   :+command-chat-input+
-   :interaction-callback
-   :+interaction-ping+
-   :+interaction-application-command+
-   :+interaction-message-component+
-   :+interaction-application-command-autocomplete+
-   :+interaction-modal-submit+))
+   :make-option
+   :make-command))
 
-(in-package :slashcord-types)
-
-;; Maybe there's an OpenAPI definition we can use to generate the definitions?
+(in-package :slashcord/types)
 
 (deftype snowflake () `(integer 0 (,most-positive-fixnum)))
 
@@ -53,12 +36,8 @@
                                     +interaction-application-command-autocomplete+
                                     +interaction-modal-submit+))
 
-(-> interaction-p (t) boolean)
-(defun interaction-p (thing)
-  (member thing +interaction-types+))
-
 (deftype interaction-type ()
-  `(satisfies interaction-p))
+  `(member thing ,@+interaction-types+))
 
 ;; TODO: Similar type checking for other flags
 ;; https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-response-object-interaction-callback-type
@@ -99,19 +78,42 @@
   (json-mop:json-to-clos input class))
 
 ;; https://discord.com/developers/docs/interactions/receiving-and-responding#interaction-object-application-command-interaction-data-option-structure
-(defclass application-command-interaction (json-encodable)
-  ((name :initarg :name :type name :json-key "name")
+(defclass interaction-resolved (json-encodable)
+  ((users
+    :initarg :users
+    :json-key "users")
+   (members
+    :initarg :members
+    :json-key "members")
+   (roles
+    :initarg :roles
+    :json-key "roles")
+   (channels
+    :initarg :channels
+    :json-key "channels")
+   (messages
+    :initarg :messages
+    :json-key "messages")
+   (attachments
+    :initarg :attachments
+    :json-key "attachments"))
+
+  (:metaclass json-serializable-class))
+
+(defclass channel (json-encodable)
+  ((id :initarg :id :type snowflake :initform 1 :json-key "id")
    (type :initarg :type :type interaction-type :json-key "type")
-   (value :initarg :value :type string :json-key "value")
-   (options :initarg :options :type application-command-interaction :json-key "options")
-   (focused :initarg :focused :type boolean :json-key "focused" :json-type :bool))
+   (guild-id :initarg :guild-id :type snowflake :json-key "guild_id")
+   (position :initarg :position :json-key "position")
+   (permission-overwrites :initarg :permission-overwrites :json-key "permission_overwrites")
+   (name :initarg :name :type string :json-key "name"))
   (:metaclass json-serializable-class))
 
 (defclass interaction-data (json-encodable)
   ((id :initarg :id :type snowflake :initform 1 :json-key "id")
    (name :initarg :name :type name :json-key "name")
    (type :initarg :type :type interaction-type :json-key "type")
-   (resolved :initarg :resolved :type list :json-key "resolved")
+   (resolved :initarg :resolved :type interaction-resolved :json-type interaction-resolved :json-key "resolved")
    (options :initarg :options :type command-options :json-key "options")
    (guild-id :initarg :guild-id :type snowflake :json-key "guild_id")
    (target-id :initarg :target-id :type snowflake :json-key "target_id"))
@@ -133,6 +135,7 @@
    (data
     :initarg :data
     :type interaction-data
+    :json-type interaction-data
     :json-key "data")
    (guild
     :initarg :name-localizations
@@ -140,7 +143,8 @@
     :json-key "guild")
    (channel
     :initarg :channel
-    :type string
+    :type channel
+    :json-type channel
     :json-key "channel")
    (channel-id
     :initarg :channel-id
@@ -193,7 +197,7 @@
 
 (defclass interaction-response (json-encodable)
   ((type :type interaction-type :initarg :type :initform +pong-callback+ :json-key "type")
-   (data :initarg :data :type interaction-callback :json-key "data"))
+   (data :initarg :data :type interaction-callback :json-type interaction-callback :json-key "data"))
   (:metaclass json-serializable-class))
 
 (defparameter pong (make-instance 'interaction-response :type +pong-callback+))
@@ -215,8 +219,7 @@
     :initarg :resolved
     :type data)
    (options
-    :initarg :options
-    :type snowflake)
+    :initarg :options)
    (name
     :initarg :name
     :type string
@@ -245,27 +248,46 @@
    (value :initarg :value :type t :json-key "value"))
   (:metaclass json-serializable-class))
 
-(deftype option-type ()
-  '(integer))
 (defvar +option-string+ 3)
+(defvar +option-integer+ 3)
 (defvar +option-boolean+ 5)
+
+(deftype option-type ()
+         `(member ,+option-string+ ,+option-integer+ ,+option-boolean+))
 
 (defclass command-option (json-encodable)
   ((type :initarg :type :type option-type :json-key "type")
    (name :initarg :name :type name :json-key "name")
    (name-localizations :initarg :name-localizations :type list :json-key "name_localizations")
    (description :initarg :description :type string :json-key "description")
-   (description-localizations)
+   (description-localizations :initarg :description-localizations :json-key "description_localizations")
    (required :initarg :required :type boolean :json-key "required" :json-type :bool)
-   (choices :initarg :choices :type (list choice) :json-key "choices")
-   (options :initarg :options :type (list command-option) :json-key "options")
-   (channel-types :json-key "channel-types")
-   (min-value :json-key "min-value")
-   (max-value :json-key "max-value")
-   (min-length :json-key "min-length")
-   (max-length :json-key "max-length")
-   (autocomplete :json-key "autocomplete"))
+   (choices :initarg :choices :type (list command-choice) :json-type (list command-choice) :json-key "choices")
+   (options :initarg :options :type (list command-option) :json-type (list command-option) :json-key "options")
+   (channel-types :initarg :channel-types :json-key "channel_types")
+   (min-value :initarg :min-value :json-key "min_value")
+   (max-value :initarg :max-value :json-key "max_value")
+   (min-length :initarg :min-length :json-key "min_length")
+   (max-length :initarg :max-length :json-key "max_length")
+   (autocomplete :initarg :autocomplete :json-key "autocomplete"))
   (:metaclass json-serializable-class))
+
+(deftype make-option-param ()
+  '(member :string :integer :boolean))
+
+(-> make-option (string make-option-param &key (:description string) (:required boolean) (:choices list) (:options list)) t)
+(defun make-option (name type &key description required choices options)
+  (let* ((types (list :string +option-string+
+                        :integer +option-integer+
+                        :boolean +option-boolean+))
+         (type-val (getf types type +option-string+)))
+    (make-instance 'command-option
+                   :type type-val
+                   :name name
+                   :description description
+                   :required required
+                   :choices (or choices #())
+                   :options (or options #()))))
 
 ;; Parameters used to POST a new command to the discord API
 ;; Probably unnecessary to keep this separate
@@ -313,6 +335,13 @@
     :json-key "contexts"))
   (:metaclass json-serializable-class))
 
+(-> make-command (string string &key (:options (or list vector))) t)
+(defun make-command (name description &key options)
+  (make-instance 'application-command-post
+                 :name name
+                 :description description
+                 :type 1
+                 :options (or options #())))
 ;; https://discord.com/developers/docs/interactions/application-commands#application-command-object
 (defclass application-command (application-command-post)
   ((id

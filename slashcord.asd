@@ -23,7 +23,7 @@
   :serial t
   :components ((:module "hack"
                 :components
-                ((:file "client"))))
+                ((:file "bot"))))
   :description "One off scripts using the library")
 
 (asdf:defsystem #:slashcord/tests

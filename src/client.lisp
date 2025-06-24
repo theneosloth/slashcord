@@ -1,24 +1,15 @@
-(defpackage slashcord-client
-  (:use :cl :slashcord-types)
+(defpackage slashcord/rest
+  (:use :cl)
   (:local-nicknames (:d dexador) (:s serapeum))
+  (:import-from :slashcord/types :to-json :from-json :application-command-post)
   (:export
-   #:list-commands))
-(in-package :slashcord-client)
-
-;; (defvar *bot-token* (uiop:getenv "SLASHCORD_BOT_TOKEN"))
-;; (defvar *application-id* (uiop:getenv "SLASHCORD_APPLICATION_ID"))
-
-(s:-> get-bot-token () string)
-(defun get-bot-token ()
-  (or
-   (uiop:getenv "SLASHCORD_BOT_TOKEN")
-   (error "Could not find SLASHCORD_BOT_TOKEN")))
-
-(s:-> get-application-id () string)
-(defun get-application-id ()
-  (or
-   (uiop:getenv "SLASHCORD_APPLICATION_ID")
-   (error "Could not find SLASHCORD_APPLICATION_ID")))
+   #:list-commands
+   #:make-client
+   #:get-bot-token
+   #:get-application-id
+   #:create-command
+   #:create-guild-command))
+(in-package :slashcord/rest)
 
 (defclass discord-api-client ()
   ((headers :initarg :headers :accessor headers :type list :initform nil)
@@ -47,8 +38,12 @@
   (:documentation "The error raised when non JSON data is received"))
 
 (defgeneric commands-uri (discord-api-client)
-  (:method (client)
+  (:method ((client discord-api-client))
       (format nil "https://discord.com/api/v10/applications/~a/commands" (application-id client))))
+
+(defgeneric guild-commands-uri (discord-api-client id)
+  (:method ((client discord-api-client) guild-id)
+      (format nil "https://discord.com/api/v10/applications/~a/guilds/~a/commands" (application-id client) guild-id)))
 
 (defmethod request ((client discord-api-client) uri &key (method :get) body)
   (with-slots (headers) client
@@ -74,33 +69,27 @@
                            :json-booleans-as-symbols t
                            :json-arrays-as-vectors t
                            :json-nulls-as-keyword t)))
-    (from-json res class)))
+    (slashcord/types:from-json res class)))
+
+(defmethod api-delete ((client discord-api-client) uri)
+  (let* ((res (request client uri :method :DELETE)))
+    res))
 
 (defmethod api-post ((client discord-api-client) uri obj class)
-  (let* ((body (to-json obj))
+  (let* ((body (slashcord/types:to-json obj))
          (res (request client uri :method :POST :body body))
          (res (yason:parse res
                            :json-booleans-as-symbols t
                            :json-arrays-as-vectors t
                            :json-nulls-as-keyword t)))
-    (from-json res class)))
+    (slashcord/types:from-json res class)))
 
-(defmethod create-command ((client discord-api-client) (command application-command-post))
+(defmethod create-command ((client discord-api-client) (command slashcord/types::application-command-post))
   (api-post client (commands-uri client) command 'application-command))
+
+(defmethod create-guild-command ((client discord-api-client) (command slashcord/types::application-command-post) guild-id)
+  (api-post client (guild-commands-uri client guild-id) command 'application-command))
 
 (defmethod list-commands ((client discord-api-client))
   (let* ((res (api-get client (commands-uri client) 'application-command)))
     res))
-
-(defun create-ping-command (client)
-  (let* ((text-option (make-instance 'command-option
-                                     :type +option-string+
-                                     :name "input"
-                                     :description "The command input"
-                                     :required t))
-         (command (make-instance 'application-command-post
-                                 :name "slash"
-                                 :type +command-chat-input+
-                                 :description "Slashcord demo command"
-                                 :options (list text-option))))
-    (create-command client command)))
