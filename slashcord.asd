@@ -6,7 +6,19 @@
   :serial t
   :components ((:module "src"
                 :components
-                ((:file "types")
+                ((:module "types"
+                  :components
+                  ((:file "package")
+                   (:file "encodable")
+                   (:file "snowflake")
+                   (:file "interaction-types")
+                   (:file "channel")
+                   (:file "resolved")
+                   (:file "interaction-data")
+                   (:file "interaction")
+                   (:file "interaction-callback-data")
+                   (:file "interaction-callback")
+                   (:file "command")))
                  (:file "client")
                  (:file "server"))))
   :description "A library for handling Discord webhook interactions"

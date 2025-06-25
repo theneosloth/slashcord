@@ -1,0 +1,11 @@
+(in-package :slashcord/types)
+
+(defclass interaction-data (json-encodable)
+  ((id :initarg :id :type snowflake :initform 1 :json-key "id")
+   (name :initarg :name :type name :json-key "name")
+   (type :initarg :type :type interaction-type :json-key "type")
+   (resolved :initarg :resolved :type resolved :json-type resolved :json-key "resolved")
+   (options :initarg :options :type command-options :json-key "options")
+   (guild-id :initarg :guild-id :type snowflake :json-key "guild_id")
+   (target-id :initarg :target-id :type snowflake :json-key "target_id"))
+  (:metaclass json-serializable-class))
