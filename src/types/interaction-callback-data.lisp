@@ -13,7 +13,7 @@
 (deftype message-flags ()
   `(integer))
 
-(defclass interaction-callback (json-encodable)
+(defclass interaction-callback-data (json-encodable)
   ((tts :initarg :tts :type boolean :json-type :bool :json-key "tts")
    (content :initarg :content :type string :json-key "content")
    (embeds :initarg :embeds :type list :json-key "embeds")

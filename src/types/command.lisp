@@ -7,9 +7,6 @@
 (deftype command-type ()
   '(integer 1 4))
 
-(deftype handler ()
-  '(member 1 2))
-
 (deftype integration ()
   '(member 0 1))
 
@@ -23,7 +20,7 @@
     :type list
     :json-key "name_localizations"
     :json-type (:list :string))
-   (value :initarg :value :type t :json-key "value"))
+   (value :initarg :value :json-key "value"))
   (:metaclass json-serializable-class))
 
 (defvar +option-string+ 3)
@@ -40,8 +37,8 @@
    (description :initarg :description :type string :json-key "description")
    (description-localizations :initarg :description-localizations :json-key "description_localizations")
    (required :initarg :required :type boolean :json-key "required" :json-type :bool)
-   (choices :initarg :choices :type (list command-choice) :json-type (list command-choice) :json-key "choices")
-   (options :initarg :options :type (list command-option) :json-type (list command-option) :json-key "options")
+   (choices :initarg :choices :type (vector command-choice) :json-type (:vector command-choice) :json-key "choices")
+   (options :initarg :options :type (vector command-option) :json-type (:vector command-option) :json-key "options")
    (channel-types :initarg :channel-types :json-key "channel_types")
    (min-value :initarg :min-value :json-key "min_value")
    (max-value :initarg :max-value :json-key "max_value")
@@ -50,40 +47,29 @@
    (autocomplete :initarg :autocomplete :json-key "autocomplete"))
   (:metaclass json-serializable-class))
 
-(deftype make-option-param ()
-  '(member :string :integer :boolean))
-
-(-> make-option (string make-option-param &key (:description string) (:required boolean) (:choices list) (:options list)) t)
-(defun make-option (name type &key description required choices options)
-  (let* ((types (list :string +option-string+
-                        :integer +option-integer+
-                        :boolean +option-boolean+))
-         (type-val (getf types type +option-string+)))
-    (make-instance 'command-option
-                   :type type-val
-                   :name name
-                   :description description
-                   :required required
-                   :choices (or choices #())
-                   :options (or options #()))))
-
 (defclass application-command-data (json-encodable)
   ((id
     :initarg :id
     :type snowflake
-    :initform nil)
+    :initform nil
+    :json-key "id")
    (type
     :initarg :type
-    :type command-type)
+    :type command-type
+    :json-key "type")
    (resolved
     :initarg :resolved
-    :type data)
+    :type resolved
+    :json-type resolved
+    :json-key "resolved")
    (options
-    :initarg :options)
+    :initarg :options
+    :json-key "options")
    (name
     :initarg :name
     :type string
-    :initform nil))
+    :initform nil
+    :json-key "name"))
 
   (:metaclass json-serializable-class))
 
@@ -111,7 +97,8 @@
     :json-key "description_localizations")
    (options
     :initarg :options
-    :type (list command-option)
+    :type (vector command-option)
+    :json-type (:vector command-option)
     :json-key "options")
    (default-member-permissions
     :initarg :default-member-permissions
@@ -124,22 +111,18 @@
     :json-key "nsfw")
    (integration-types
     :initarg :integration-types
-    :type (list integration)
+    :type (list integration-types)
+    :json-type :vector
     :json-key "integration_types")
    (contexts
     :initarg :contexts
-    :type (list integration-contexts)
+    :type (vector integration-context)
+    :json-type (:vector integration-contexts)
     :json-key "contexts"))
   (:metaclass json-serializable-class))
 
-
-(-> make-command (string string &key (:options (or list vector))) t)
-(defun make-command (name description &key options)
-  (make-instance 'application-command-post
-                 :name name
-                 :description description
-                 :type 1
-                 :options (or options #())))
+(deftype handler ()
+  '(member 1 2))
 
 ;; https://discord.com/developers/docs/interactions/application-commands#application-command-object
 (defclass application-command (application-command-post)

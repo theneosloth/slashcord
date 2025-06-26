@@ -18,7 +18,8 @@
                    (:file "interaction")
                    (:file "interaction-callback-data")
                    (:file "interaction-callback")
-                   (:file "command")))
+                   (:file "command")
+                   (:file "util")))
                  (:file "client")
                  (:file "server"))))
   :description "A library for handling Discord webhook interactions"

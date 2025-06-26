@@ -8,4 +8,7 @@
    :to-json
    :from-json
    :make-option
-   :make-command))
+   :make-command
+   :make-text-callback
+   :get-interaction-id
+   :interaction-type))

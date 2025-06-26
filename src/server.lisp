@@ -1,40 +1,31 @@
 (defpackage slashcord/server
-  (:use :cl :slashcord/types)
+  (:use :cl)
   (:local-nicknames (:a alexandria)
                     (:i :ironclad)
                     (:f flexi-streams)
-                    (:s serapeum)
                     (:h :hunchentoot))
+  (:import-from :slashcord/types :from-json :to-json)
   (:import-from :alexandria :if-let)
-  (:import-from :serapeum :-> :dict :etypecase-of)
+  (:import-from :serapeum :-> :etypecase-of)
   (:import-from :easy-routes :defroute)
-  (:export :main :start :stop :make-event-handler))
+  (:export :main :start :stop :define-handler))
 (in-package :slashcord/server)
 
 (defparameter *server* nil)
-(defparameter *events* (make-hash-table :test #'equal))
+(defparameter *event-handlers* (make-hash-table :test #'equal))
 
 (setf h:*show-lisp-errors-p* t)
 
 (defvar +signature-header+ :x-signature-ed25519)
 (defvar +timestamp-header+ :x-signature-timestamp)
 (defvar +slashcord-port+ (or
-                                  (ignore-errors (parse-integer (uiop:getenv "SLASHCORD_PORT")))
-                                  4242))
+                          (ignore-errors (parse-integer (uiop:getenv "SLASHCORD_PORT")))
+                          4242))
 
-(define-condition slashcord-error (error) ()
-  (:documentation "Superclass for slashcord conditions"))
-
-(define-condition unknown-interaction (slashcord-error)
-  ((%interaction-id :initarg :interaction-id :type integer :reader interaction-id))
-  (:documentation "Condition raised when the server receives an unknown interaction.")
-  (:report (lambda (c s)
-             (format s "Unknown interaction received: ~a" (interaction-id c)))))
-
-;; https://discord.com/developers/docs/interactions/receiving-and-responding#security-and-authorization
 (-> valid-signature-p (string string string string) boolean)
 (defun valid-signature-p (public-key body signature timestamp)
-  "Verify an incoming Discord interaction against the application public key"
+  "Verify an incoming Discord interaction against the application public key
+   See: https://discord.com/developers/docs/interactions/receiving-and-responding#security-and-authorization"
   (handler-case
       (if-let ((verify-key (i:make-public-key :ed25519 :y (i:hex-string-to-byte-array public-key)))
                  (signature-bytes (i:hex-string-to-byte-array signature))
@@ -44,7 +35,7 @@
          body-bytes
          signature-bytes))
     (i:ironclad-error (c)
-      "TODO: logging or better handling here"
+      "TODO: logging or better handling of error message"
       (values nil c))))
 
 (defun @json (next)
@@ -62,28 +53,35 @@
         (easy-routes:http-error 401))
     (easy-routes:http-error h:+http-bad-request+)))
 
-(-> get-event-handler (slashcord/types::interaction-type) t)
-(defun get-event-handler (interaction-id)
-  (gethash interaction-id *events*))
+(-> get-event-handler (slashcord/types:interaction-type) t)
+(defun get-event-handler (event)
+  (gethash event *event-handlers*))
 
-(-> make-event-handler (t function) nil)
-(defun make-event-handler (event-name event-handler)
-  (setf (gethash event-name *events*) event-handler))
+(-> bind-event-handler (t function) nil)
+(defun bind-event-handler (event event-handler)
+  (setf (gethash event *event-handlers*) event-handler))
 
-(defun handle-ping (interaction)
-  (declare (ignorable interaction))
-  (let ((pong (to-json slashcord/types::pong)))
-    pong))
+(defmacro define-handler (interaction-name (arg) &body body)
+  "Create a handler for INTERACTION-NAME"
+  (let ((interaction-gensym (gensym))
+        (function-gensym (gensym)))
+    `(eval-when (:compile-toplevel :load-toplevel :execute)
+       (let ((,interaction-gensym (slashcord/types:get-interaction-id ,interaction-name)))
+         (flet ((,function-gensym (,arg) ,@body))
+           (check-type ,interaction-gensym slashcord/types::interaction-type)
+           (bind-event-handler ,interaction-gensym
+                               #',function-gensym)
+           ,interaction-gensym)))))
 
 (defun handle-interaction (interaction)
   (let* ((interaction-type (slot-value interaction 'slashcord/types::type))
          (handler (get-event-handler interaction-type)))
-    (etypecase-of t handler
-      (function (funcall handler interaction))
-      (t (error "No handler configured for event")))))
+    (etypecase handler
+      (function (to-json (funcall handler interaction)))
+      (t (error "No handler configured for event ~a.~&" interaction-type)))))
 
-(defroute receive-interaction ("/" :method :post :decorators (@auth @json)) ()
-  "Route that receives json interactions and delegates them to interaction-handlers"
+(defroute receive-interaction ("/" :method :post :decorators (@json)) ()
+  "Route that receives json interactions and delegates them to interaction handlers"
   (handler-case
       (let*
           ((json (yason:parse
@@ -92,12 +90,17 @@
                   :json-arrays-as-vectors t
                   :json-nulls-as-keyword t))
            (interaction-type (gethash "type" json)))
+        ;; TODO: how to represent optional type?
         (etypecase-of t interaction-type
           (slashcord/types::interaction-type (handle-interaction (from-json json 'slashcord/types::interaction)))
-          (t (error 'unknown-interaction :interaction-id interaction-type))))
+          (t (error "Received data does not contain a supported interaction ~a.~&" interaction-type))))
     (error (c)
       (format *error-output* "Interaction handler encountered an error: ~a.~&" c)
       (easy-routes:http-error h:+http-bad-request+))))
+
+(defroute liveness ("/healthz" :method :get :decorators ()) ()
+  "Simple liveness check endpoint."
+  "ok")
 
 (-> get-public-key () string)
 (defun get-public-key ()
@@ -107,7 +110,6 @@
 
 (defun start (&key (port +slashcord-port+))
   "Start a background thread running Slashcord on a given port"
-  (make-event-handler slashcord/types::+interaction-ping+ #'handle-ping)
   (setf *server* (make-instance 'easy-routes:routes-acceptor :port port))
   (h:start *server*))
 
@@ -123,7 +125,7 @@
    "Please set SLASHCORD_PUBLIC_KEY to your application public key.")
   (format *error-output* "Running slashcord on ~D~&" +slashcord-port+)
   (finish-output)
-  (start :port +slashcord-port+)
+  (start)
   (handler-case (bt:join-thread (find-if (lambda (th)
                                            (search "hunchentoot" (bt:thread-name th)))
                                          (bt:all-threads)))

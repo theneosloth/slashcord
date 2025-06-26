@@ -8,14 +8,16 @@
    #:get-bot-token
    #:get-application-id
    #:create-command
-   #:create-guild-command))
+   #:delete-command
+   #:create-guild-command
+   #:command-uri
+   #:commands-uri))
 (in-package :slashcord/rest)
 
 (defclass discord-api-client ()
   ((headers :initarg :headers :accessor headers :type list :initform nil)
    (application-id :initarg :application-id :type string :accessor application-id
                    :initform (error "application-id not provided"))))
-
 
 (defun make-client (application-id token)
   (let* ((token-header (format nil "Bot ~a" token))
@@ -39,7 +41,14 @@
 
 (defgeneric commands-uri (discord-api-client)
   (:method ((client discord-api-client))
-      (format nil "https://discord.com/api/v10/applications/~a/commands" (application-id client))))
+    (format nil "https://discord.com/api/v10/applications/~a/commands" (application-id client))))
+
+(defgeneric command-uri (discord-api-client string)
+  (:method ((client discord-api-client) (id string))
+    (format nil "https://discord.com/api/v10/applications/~a/commands/~a" (application-id client) id)))
+
+(defmethod command-uri((client discord-api-client) (command slashcord/types::application-command))
+  (format nil "https://discord.com/api/v10/applications/~a/commands/~a" (application-id client) (slot-value command 'slashcord/types::id)))
 
 (defgeneric guild-commands-uri (discord-api-client id)
   (:method ((client discord-api-client) guild-id)
@@ -85,11 +94,19 @@
     (slashcord/types:from-json res class)))
 
 (defmethod create-command ((client discord-api-client) (command slashcord/types::application-command-post))
-  (api-post client (commands-uri client) command 'application-command))
+  (api-post client (commands-uri client) command 'slashcord/types::application-command))
 
 (defmethod create-guild-command ((client discord-api-client) (command slashcord/types::application-command-post) guild-id)
-  (api-post client (guild-commands-uri client guild-id) command 'application-command))
+  (api-post client (guild-commands-uri client guild-id) command 'slashcord/types::application-command))
 
 (defmethod list-commands ((client discord-api-client))
-  (let* ((res (api-get client (commands-uri client) 'application-command)))
+  (let* ((res (api-get client (commands-uri client) 'slashcord/types::application-command)))
     res))
+
+(defgeneric delete-command (discord-api-client slashcord/types::application-command)
+  (:method ((client discord-api-client) (command slashcord/types::application-command))
+    (let ((url (command-uri client command)))
+      (api-delete client url))))
+
+(defmethod delete-command ((client discord-api-client) (id string))
+  (api-delete client (command-uri client id)))
