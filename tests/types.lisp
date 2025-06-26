@@ -1,5 +1,5 @@
 (defpackage slashcord-tests
-  (:use :cl :fiveam :slashcord-types)
+  (:use :cl :fiveam :slashcord/types)
   (:export :all-tests))
 
 (in-package :slashcord-tests)
@@ -25,20 +25,20 @@
          (animal-choice-2 (make-instance 'command-choice :name "Cat" :value "animal_cat"))
          (animal-choice-3 (make-instance 'command-choice :name "Penguin" :value "animal_penguin"))
          (animal-option (make-instance 'command-option
-                                       :type +option-string+
+                                       :type slashcord/types:+option-string+
                                        :name "animal"
                                        :description "The type of animal"
                                        :required t
-                                       :choices (list animal-choice-1 animal-choice-2 animal-choice-3)))
+                                       :choices (vector animal-choice-1 animal-choice-2 animal-choice-3)))
          (only-small-option (make-instance 'command-option
-                                           :type +option-boolean+
+                                           :type slashcord/types:+option-boolean+
                                            :name "only_smol"
                                            :description "Whether to show only baby animals"
                                            :required nil))
          (blep-command (make-instance 'application-command-post
                                       :name "blep"
-                                      :type +command-chat-input+
+                                      :type slashcord/types:+command-chat-input+
                                       :description "Send a random adorable animal photo"
-                                      :options (list animal-option only-small-option)))
+                                      :options (vector animal-option only-small-option)))
          (json (to-json blep-command)))
     (is (string= json "{\"type\":1,\"name\":\"blep\",\"description\":\"Send a random adorable animal photo\",\"options\":[{\"type\":3,\"name\":\"animal\",\"description\":\"The type of animal\",\"required\":true,\"choices\":[{\"name\":\"Dog\",\"value\":\"animal_dog\"},{\"name\":\"Cat\",\"value\":\"animal_cat\"},{\"name\":\"Penguin\",\"value\":\"animal_penguin\"}]},{\"type\":5,\"name\":\"only_smol\",\"description\":\"Whether to show only baby animals\",\"required\":false}]}"))))

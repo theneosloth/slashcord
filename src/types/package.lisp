@@ -11,4 +11,10 @@
    :make-command
    :make-text-callback
    :get-interaction-id
-   :interaction-type))
+   :interaction-type
+   :+option-string+
+   :+option-integer+
+   :+option-boolean+
+   :+command-chat-input+
+   :command-choice
+   :command-option))
