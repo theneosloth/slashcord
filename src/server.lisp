@@ -82,10 +82,11 @@
       (function (to-json (funcall handler interaction)))
       (t (error "No handler configured for event ~a.~&" interaction-type)))))
 
-(define-handler :ping (interaction)
-  "Return the expected PONG object for Discord API ping requests."
-  (declare (ignorable interaction))
-  slashcord/types::pong)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (define-handler :ping (interaction)
+    "Return the expected PONG object for Discord API ping requests."
+    (declare (ignorable interaction))
+    slashcord/types::pong))
 
 (defroute receive-interaction ("/" :method :post :decorators (@auth @json)) ()
   "Route that receives json interactions and delegates them to interaction handlers"
@@ -117,7 +118,7 @@
 
 (defun start (&key (port +slashcord-port+) (public-key (get-public-key)))
   "Start a background thread running Slashcord on a given port"
-  (setf +public-key+ key)
+  (setf +public-key+ public-key)
   (assert
    (and +public-key+
         (ignore-errors (i:hex-string-to-byte-array (get-public-key))))

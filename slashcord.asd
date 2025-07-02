@@ -29,14 +29,15 @@
   :build-pathname "slashcord")
 
 
-(asdf:defsystem #:slashcord/hack
+(asdf:defsystem #:slashcord/examples
   :author ""
   :license ""
   :depends-on ("slashcord")
   :serial t
-  :components ((:module "hack"
+  :components ((:module "examples"
                 :components
-                ((:file "bot"))))
+                ((:file "ping")
+                 (:file "lfg"))))
   :description "One off scripts using the library")
 
 (asdf:defsystem #:slashcord/tests
