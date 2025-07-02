@@ -17,4 +17,7 @@
    :+option-boolean+
    :+command-chat-input+
    :command-choice
-   :command-option))
+   :command-option
+   :pong
+   :type
+   :interaction))

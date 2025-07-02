@@ -115,7 +115,7 @@
    (uiop:getenv "SLASHCORD_PUBLIC_KEY")
    (error "Could not find public key")))
 
-(defun start (&key (port +slashcord-port+) (key (get-public-key)))
+(defun start (&key (port +slashcord-port+) (public-key (get-public-key)))
   "Start a background thread running Slashcord on a given port"
   (setf +public-key+ key)
   (assert
