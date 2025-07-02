@@ -21,13 +21,19 @@
    (uiop:getenv "SLASHCORD_APPLICATION_ID")
    (error "Could not find SLASHCORD_APPLICATION_ID")))
 
+(-> get-public-key () string)
+(defun get-public-key ()
+  (or
+   (uiop:getenv "SLASHCORD_PUBLIC_KEY")
+   (error "Could not find public key")))
+
 (defmethod inc-key ((table hash-table) key)
   (if (gethash key table)
       (incf (gethash key table))
       (setf (gethash key table) 1)))
 
 (slashcord/server:define-handler :COMMAND (interaction)
-  (let* ((interaction-channel (slot-value  (slot-value interaction 'slashcord/types::channel) 'slashcord/types::id))
+  (let* ((interaction-channel (slot-value (slot-value interaction 'slashcord/types::channel) 'slashcord/types::id))
          (example (slashcord/types:make-text-callback (format nil "~a" (inc-key *lfg-table* interaction-channel)))))
     example))
 
@@ -43,4 +49,4 @@
 (defun main ()
   (create-lfg-commands)
   (list-commands)
-  (s:start))
+  (s:start :public-key (get-public-key)))

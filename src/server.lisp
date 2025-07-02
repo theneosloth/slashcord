@@ -21,6 +21,7 @@
 (defvar +slashcord-port+ (or
                           (ignore-errors (parse-integer (uiop:getenv "SLASHCORD_PORT")))
                           4242))
+(defvar +public-key+ nil)
 
 (-> valid-signature-p (string string string string) boolean)
 (defun valid-signature-p (public-key body signature timestamp)
@@ -48,7 +49,7 @@
   (if-let ((body (h:raw-post-data :force-text t))
              (signature (cdr (assoc +signature-header+ (h:headers-in*))))
              (timestamp (cdr (assoc +timestamp-header+ (h:headers-in*)))))
-    (if (valid-signature-p (get-public-key) body signature timestamp)
+    (if (valid-signature-p +public-key+ body signature timestamp)
         (funcall next)
         (easy-routes:http-error 401))
     (easy-routes:http-error h:+http-bad-request+)))
@@ -68,19 +69,25 @@
     `(eval-when (:compile-toplevel :load-toplevel :execute)
        (let ((,interaction-gensym (slashcord/types:get-interaction-id ,interaction-name)))
          (flet ((,function-gensym (,arg) ,@body))
-           (check-type ,interaction-gensym slashcord/types::interaction-type)
+           (check-type ,interaction-gensym slashcord/types:interaction-type)
            (bind-event-handler ,interaction-gensym
                                #',function-gensym)
            ,interaction-gensym)))))
 
 (defun handle-interaction (interaction)
-  (let* ((interaction-type (slot-value interaction 'slashcord/types::type))
+  "Helper function that dispatches an INTERACTION object to an appropriate event handler."
+  (let* ((interaction-type (slot-value interaction 'slashcord/types:type))
          (handler (get-event-handler interaction-type)))
     (etypecase handler
       (function (to-json (funcall handler interaction)))
       (t (error "No handler configured for event ~a.~&" interaction-type)))))
 
-(defroute receive-interaction ("/" :method :post :decorators (@json)) ()
+(define-handler :ping (interaction)
+  "Return the expected PONG object for Discord API ping requests."
+  (declare (ignorable interaction))
+  slashcord/types::pong)
+
+(defroute receive-interaction ("/" :method :post :decorators (@auth @json)) ()
   "Route that receives json interactions and delegates them to interaction handlers"
   (handler-case
       (let*
@@ -92,7 +99,7 @@
            (interaction-type (gethash "type" json)))
         ;; TODO: how to represent optional type?
         (etypecase-of t interaction-type
-          (slashcord/types::interaction-type (handle-interaction (from-json json 'slashcord/types::interaction)))
+          (slashcord/types::interaction-type (handle-interaction (from-json json 'slashcord/types:interaction)))
           (t (error "Received data does not contain a supported interaction ~a.~&" interaction-type))))
     (error (c)
       (format *error-output* "Interaction handler encountered an error: ~a.~&" c)
@@ -108,23 +115,24 @@
    (uiop:getenv "SLASHCORD_PUBLIC_KEY")
    (error "Could not find public key")))
 
-(defun start (&key (port +slashcord-port+))
+(defun start (&key (port +slashcord-port+) (key (get-public-key)))
   "Start a background thread running Slashcord on a given port"
+  (setf +public-key+ key)
+  (assert
+   (and +public-key+
+        (ignore-errors (i:hex-string-to-byte-array (get-public-key))))
+   ()
+   "Please set SLASHCORD_PUBLIC_KEY to your application public key.")
   (setf *server* (make-instance 'easy-routes:routes-acceptor :port port))
-  (h:start *server*))
+  (h:start *server*)
+  (format *error-output* "Running slashcord on ~D~&" +slashcord-port+)
+  (finish-output))
 
 (defun stop ()
   (h:stop *server*))
 
 (defun main ()
   "Blocking function with ctrl+c handling"
-  (assert
-   (and (get-public-key)
-        (ignore-errors (i:hex-string-to-byte-array (get-public-key))))
-   ()
-   "Please set SLASHCORD_PUBLIC_KEY to your application public key.")
-  (format *error-output* "Running slashcord on ~D~&" +slashcord-port+)
-  (finish-output)
   (start)
   (handler-case (bt:join-thread (find-if (lambda (th)
                                            (search "hunchentoot" (bt:thread-name th)))

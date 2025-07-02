@@ -16,13 +16,13 @@
           sbclPackages.ironclad
           sbclPackages.hunchentoot
           sbclPackages.easy-routes
-          sbclPackages.clj-arrows
           sbclPackages.json-mop
           sbclPackages.yason
           sbclPackages.serapeum
           sbclPackages.fiveam
           sbclPackages.dexador
           sbclPackages.access
+          sbclPackages.log4cl
         ];
 
       in rec {

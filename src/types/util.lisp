@@ -1,5 +1,6 @@
 (in-package :slashcord/types)
 
+;; Idiomatic name?
 (-> get-interaction-id ((member :ping :command :autocomplete :modal)) integer)
 (defun get-interaction-id (interaction)
   (ecase interaction
