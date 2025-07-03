@@ -58,6 +58,7 @@
             wrapProgram $out/bin/slashcord \
                  --prefix LD_LIBRARY_PATH : ${LD_LIBRARY_PATH}
           '';
+
         };
 
         slashcord-main = pkgs.writeShellScriptBin "slashcord" ''
@@ -109,5 +110,6 @@
           type = "app";
           program = "${self.packages.${system}.default}/bin/slashcord";
         };
+
       });
 }
