@@ -58,7 +58,7 @@
     :json-key "app-permissions")
    (locale :initarg :locale :type string :json-key "locale")
    (guild-locale :initarg :guild-locale :type string :json-key "guild_locale")
-   (entitlements :initarg :entitlements :type list :json-key "entitlements")
+   (entitlements :initarg :entitlements :type vector :json-key "entitlements" :json-type :vector)
    (context
     :initarg :context
     :type integration-contexts

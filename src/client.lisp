@@ -2,6 +2,7 @@
   (:use :cl)
   (:local-nicknames (:d dexador) (:s serapeum))
   (:import-from :slashcord/types :to-json :from-json :application-command-post)
+  (:import-from :serapeum :->)
   (:export
    #:list-commands
    #:make-client
@@ -22,7 +23,7 @@
 (defun make-client (application-id token)
   (let* ((token-header (format nil "Bot ~a" token))
          (headers `(("Content-Type" . "application/json")
-                    ("User-Agent" . "SlashCord (https://github.com/theneosloth/slashcord, 0.0.1)")
+                    ("User-Agent" . "Slashcord (https://github.com/theneosloth/slashcord, 0.0.1)")
                     ("Authorization" . ,token-header))))
     (make-instance 'discord-api-client :application-id application-id :headers headers)))
 

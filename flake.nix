@@ -68,7 +68,7 @@
           exec ${lisp}/bin/sbcl \
           --noinform \
           --disable-debugger \
-          --eval '(declaim (optimize (speed 3) (safety 0) (debug 0)))' \
+          --eval '(declaim (optimize (speed 3) (debug 0)))' \
           --eval '(load (sb-ext:posix-getenv "ASDF"))' \
           --eval "(asdf:load-system :slashcord)" \
           --eval '(slashcord/server::main)'
@@ -80,7 +80,7 @@
             export CL_SOURCE_REGISTRY=$PWD
           '';
           buildInputs = with pkgs; [
-            pkgs.cloudflared
+            cloudflared
             (sbcl.withPackages (ps: lispLibs))
           ];
         };

@@ -1,28 +1,3 @@
-# Slashcord
-
-Slashcord is a minimal framework to handle Discord [application commands](https://discord.com/developers/docs/interactions/application-commands).
-
-Currently only a small subset of the API is implemented.
-
-Inspired by https://github.com/JohnnyJayJay/slash/
-
-# Structure
-The library is organized into 3 main packages:
-
-## slashcord/types
-Contains mappings from Discord API json objects to CLOS classes. All types descend from a utility class json-encodable and are expected to have all field types documented with json-mop.
-
-## slashcord/rest
-A minimal implementation of a Discord API rest client, used only to register, list and delete commands with the API
-
-## slashcord/server
-A web server that implements all the authentication required for receiving Discord Interactions as documented [here](https://discord.com/developers/docs/interactions/receiving-and-responding).
-By default it responds only to Ping interactions. Additional handlers can be registered through slashcord/server:define-handler
-
-
-# Example Bot
-
-``` common-lisp
 (defpackage ping-bot
   (:use :cl)
   (:import-from :slashcord/types :make-command :make-option)
@@ -52,4 +27,3 @@ By default it responds only to Ping interactions. Additional handlers can be reg
 (defun main ()
   (create-ping-command)
   (start))
-```

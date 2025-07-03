@@ -25,7 +25,7 @@
   :description "A library for handling Discord webhook interactions"
   :in-order-to ((asdf:test-op (asdf:test-op "slashcord/tests")))
   :build-operation "program-op"
-  :entry-point "slashcord:main"
+  :entry-point "slashcord/server:main"
   :build-pathname "slashcord")
 
 

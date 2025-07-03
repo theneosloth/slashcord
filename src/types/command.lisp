@@ -1,11 +1,8 @@
 (in-package :slashcord/types)
-(deftype command-type ()
-  '(integer))
 
 (defvar +command-chat-input+ 1)
-
 (deftype command-type ()
-  '(integer 1 4))
+  `(member ,+command-chat-input+))
 
 (deftype integration ()
   '(member 0 1))
@@ -24,11 +21,14 @@
   (:metaclass json-serializable-class))
 
 (defvar +option-string+ 3)
-(defvar +option-integer+ 3)
+(defvar +option-integer+ 4)
 (defvar +option-boolean+ 5)
+(defvar +option-user+ 6)
+(defvar +option-channel+ 7)
+;;TODO: rest of options
 
 (deftype option-type ()
-         `(member ,+option-string+ ,+option-integer+ ,+option-boolean+))
+         `(member ,+option-string+ ,+option-integer+ ,+option-boolean+ ,+option-user+ ,+option-channel+))
 
 (defclass command-option (json-encodable)
   ((type :initarg :type :type option-type :json-key "type")
@@ -111,8 +111,8 @@
     :json-key "nsfw")
    (integration-types
     :initarg :integration-types
-    :type (list integration-types)
-    :json-type :vector
+    :type (vector integration-types)
+    :json-type (:vector integration-types)
     :json-key "integration_types")
    (contexts
     :initarg :contexts
