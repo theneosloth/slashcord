@@ -21,7 +21,7 @@
                    :description description
                    :required required
                    :choices (coerce choices 'vector)
-                   :options (coerce choices 'vector))))
+                   :options (coerce options 'vector))))
 
 (-> make-command (string string &key (:options vector)) t)
 (defun make-command (name description &key options)

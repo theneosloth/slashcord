@@ -50,4 +50,4 @@
                 ((:file "types"))))
   :description "Test system for slashcord"
   :perform (asdf:test-op (o s)
-                    (uiop:symbol-call :fiveam '#:run! :all-tests)))
+                    (uiop:symbol-call :slashcord-tests :do-tests)))

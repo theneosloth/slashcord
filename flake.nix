@@ -21,11 +21,8 @@
           sbclPackages.serapeum
           sbclPackages.fiveam
           sbclPackages.dexador
-          sbclPackages.access
-          sbclPackages.log4cl
         ];
 
-      in rec {
         slashcord = pkgs.sbcl.buildASDFSystem {
           inherit pname version src nativeLibs lispLibs;
           systems = [ "slashcord" ];
@@ -75,7 +72,8 @@
           "$@"
         '';
 
-        devShell = pkgs.mkShell {
+      in rec {
+        devShells.default = pkgs.mkShell {
           shellHook = ''
             export CL_SOURCE_REGISTRY=$PWD
           '';
