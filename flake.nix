@@ -42,10 +42,10 @@
           dontStrip = true;
           buildPhase = ''
             ${lisp}/bin/sbcl --noinform --disable-debugger <<EOF
-              (declaim (optimize (speed 3) (safety 0) (debug 0)))
+              (declaim (optimize (speed 3) (debug 0)))
               (load (sb-ext:posix-getenv "ASDF"))
               (asdf:load-system :slashcord)
-              (setf uiop:*image-entry-point* #'slashcord:main)
+              (setf uiop:*image-entry-point* #'slashcord/server:main)
               (uiop:dump-image "slashcord"
                 :executable t
                 #+sb-core-compression :compression
@@ -67,15 +67,15 @@
           export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
           exec ${lisp}/bin/sbcl \
           --noinform \
+          --disable-debugger \
           --eval '(declaim (optimize (speed 3) (safety 0) (debug 0)))' \
           --eval '(load (sb-ext:posix-getenv "ASDF"))' \
           --eval "(asdf:load-system :slashcord)" \
-          --eval '(slashcord::main)'
+          --eval '(slashcord/server::main)'
           "$@"
         '';
 
         devShell = pkgs.mkShell {
-          inherit LD_LIBRARY_PATH;
           shellHook = ''
             export CL_SOURCE_REGISTRY=$PWD
           '';

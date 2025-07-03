@@ -66,13 +66,17 @@
   "Create a handler for INTERACTION-NAME"
   (let ((interaction-gensym (gensym))
         (function-gensym (gensym)))
-    `(eval-when (:compile-toplevel :load-toplevel :execute)
-       (let ((,interaction-gensym (slashcord/types:get-interaction-id ,interaction-name)))
-         (flet ((,function-gensym (,arg) ,@body))
-           (check-type ,interaction-gensym slashcord/types:interaction-type)
-           (bind-event-handler ,interaction-gensym
-                               #',function-gensym)
-           ,interaction-gensym)))))
+    `(let ((,interaction-gensym (slashcord/types:get-interaction-id ,interaction-name)))
+       (flet ((,function-gensym (,arg) ,@body))
+         (check-type ,interaction-gensym slashcord/types:interaction-type)
+         (setf (gethash ,interaction-gensym *event-handlers*)
+               #',function-gensym)
+         ,interaction-gensym))))
+
+(define-handler :ping (interaction)
+  "Return the expected PONG object for Discord API ping requests."
+  (declare (ignorable interaction))
+  slashcord/types::pong)
 
 (defun handle-interaction (interaction)
   "Helper function that dispatches an INTERACTION object to an appropriate event handler."
@@ -82,11 +86,7 @@
       (function (to-json (funcall handler interaction)))
       (t (error "No handler configured for event ~a.~&" interaction-type)))))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (define-handler :ping (interaction)
-    "Return the expected PONG object for Discord API ping requests."
-    (declare (ignorable interaction))
-    slashcord/types::pong))
+
 
 (defroute receive-interaction ("/" :method :post :decorators (@auth @json)) ()
   "Route that receives json interactions and delegates them to interaction handlers"
