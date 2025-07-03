@@ -1,7 +1,7 @@
 (asdf:defsystem #:slashcord
   :version "0.0.1"
   :author "Stefan Kuznetsov"
-  :license "MIT"
+  :license "LGPL"
   :depends-on ("alexandria" "ironclad" "hunchentoot" "easy-routes" "serapeum" "yason" "json-mop" "dexador")
   :serial t
   :components ((:module "src"
